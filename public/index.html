@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2C10.5 2 6 6.5 6 12c0 7 10 18 10 18s10-11 10-18c0-5.5-4.5-10-10-10z' fill='%232f66c9'/%3E%3Ccircle cx='16' cy='12' r='4' fill='%23fff'/%3E%3C/svg%3E" />
+  <title>校原行 · 登录</title>
+  <link rel="stylesheet" href="/css/style.css?v=90" />
+  <!-- ?v= 是缓存版本号：静态资源在 server/index.js 里设了一天缓存，HTML 本身不缓存，
+       所以每轮改完 js/css 只要把这个数字 +1，浏览器就会重新拉，不用手动强刷 -->
+</head>
+<body class="page-auth">
+  <div class="auth-wrap">
+    <section class="auth-brand">
+      <div class="brand-head">
+        <img class="brand-logo" src="/img/logo.png" alt="校原行 LOGO" width="92" height="92" />
+        <div class="brand-name">
+          <h1>校原行</h1>
+          <p>一张校园地图，装下消息、搭子和课表。</p>
+        </div>
+      </div>
+      <ul class="brand-fns">
+        <li>
+          <span class="fn-ico" aria-hidden="true">💬</span>
+          <div class="fn-text">
+            <b>留言</b>
+            <small>在地图上圈出地点：学校发布通知、学习·生活·娱乐讨论，封路路段直接画出来。</small>
+          </div>
+          <span class="fn-tag live">已上线</span>
+        </li>
+        <li>
+          <span class="fn-ico" aria-hidden="true">🧩</span>
+          <div class="fn-text">
+            <b>组队</b>
+            <small>在地图上发起课程、竞赛、自习、运动组队，看成员名单，点一下就能加入。</small>
+          </div>
+          <span class="fn-tag live">已上线</span>
+        </li>
+      </ul>
+    </section>
+
+    <section class="auth-card">
+      <p class="auth-note hidden" id="auth-note">已退出登录，随时可以再进来。</p>
+      <div class="tabs" role="tablist">
+        <button class="tab active" data-tab="login" role="tab">登录</button>
+        <button class="tab" data-tab="register" role="tab">注册</button>
+      </div>
+
+      <form id="login-form" class="form" autocomplete="on">
+        <label>账号
+          <input name="username" placeholder="4-20 位字母、数字或下划线" />
+        </label>
+        <label>密码
+          <input name="password" type="password" placeholder="至少 6 位" />
+        </label>
+        <label>身份编码（选填）
+          <input name="code" placeholder="留空 = 学生" maxlength="10" />
+        </label>
+        <p class="error" id="login-error"></p>
+        <button class="submit" type="submit">进入地图</button>
+      </form>
+
+      <form id="register-form" class="form hidden" autocomplete="off">
+        <label>账号
+          <input name="username" placeholder="4-20 位字母、数字或下划线" />
+        </label>
+        <label>密码
+          <input name="password" type="password" placeholder="至少 6 位" />
+        </label>
+        <label>名称（仅限中文，最多 7 个字）
+          <input name="nickname" maxlength="7" placeholder="例如：林晓晓" />
+          <span class="field-hint" id="nick-hint">已输入 0 / 7 个汉字</span>
+        </label>
+        <label>身份编码（选填）
+          <input name="code" placeholder="留空 = 学生" maxlength="10" />
+        </label>
+        <div class="avatar-field">
+          <span class="avatar-label">头像</span>
+          <div class="avatar-preview" id="avatar-preview">🙂</div>
+          <div class="emoji-grid" id="emoji-grid"></div>
+          <div class="color-row" id="color-row"></div>
+        </div>
+        <p class="error" id="register-error"></p>
+        <button class="submit" type="submit">注册并进入</button>
+      </form>
+    </section>
+  </div>
+  <script src="/js/api.js?v=90"></script>
+  <script src="/js/login.js?v=90"></script>
+</body>
+</html>
