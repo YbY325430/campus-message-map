@@ -1,0 +1,14 @@
+{
+  "name": "campus-message-map",
+  "version": "1.0.0",
+  "description": "校园 2D 地图留言平台",
+  "type": "module",
+  "scripts": {
+    "init-db": "node server/init-db.js",
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

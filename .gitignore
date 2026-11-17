@@ -1,0 +1,14 @@
+node_modules/
+*.log
+
+# 本地数据库（含账号密码哈希与登录会话）：克隆后跑 npm run init-db 重建
+server/map.db*
+
+# 数据库与代码备份（含密码哈希），不入库
+backups/
+
+# 便携版 Node 运行时（体积大，按平台单独分发）
+runtime/
+
+.DS_Store
+Thumbs.db
