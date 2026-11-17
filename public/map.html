@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2C10.5 2 6 6.5 6 12c0 7 10 18 10 18s10-11 10-18c0-5.5-4.5-10-10-10z' fill='%232f66c9'/%3E%3Ccircle cx='16' cy='12' r='4' fill='%23fff'/%3E%3C/svg%3E" />
+  <title>校园留言地图</title>
+  <link rel="stylesheet" href="/css/style.css?v=90" />
+  <!-- ?v= 是缓存版本号：静态资源在 server/index.js 里设了一天缓存，HTML 本身不缓存，
+       所以每轮改完 js/css 只要把这个数字 +1，浏览器就会重新拉，不用手动强刷 -->
+</head>
+<body class="page-map">
+  <header class="topbar">
+    <div class="board-switch" id="board-switch" role="group" aria-label="校园板块">
+      <span class="bs-thumb" aria-hidden="true"></span>
+      <button class="bs-btn active" type="button" data-board="message" aria-pressed="true">留言</button>
+      <button class="bs-btn" type="button" data-board="team" aria-pressed="false">组队</button>
+    </div>
+    <div class="topbar-right">
+      <button class="ghost" id="btn-help" type="button">怎么用？</button>
+      <button class="user-chip" id="user-chip" type="button" title="进入个人页面">
+        <span class="chip-avatar" id="chip-avatar">🙂</span>
+        <span id="chip-nickname">…</span>
+        <span class="role-tag" id="chip-role" hidden></span>
+      </button>
+      <button class="ghost" id="btn-logout" type="button">退出</button>
+    </div>
+  </header>
+
+  <main class="layout panel-collapsed" id="layout">
+    <section class="map-panel">
+      <div class="filter-row">
+        <div class="filter-bar" id="filter-bar"></div>
+        <div class="zoom-bar">
+          <button class="ghost" id="zoom-in" type="button" title="放大">＋</button>
+          <span class="zoom-level" id="zoom-level">100%</span>
+          <button class="ghost" id="zoom-out" type="button" title="缩小">－</button>
+          <button class="ghost" id="zoom-reset" type="button">复位</button>
+        </div>
+        <aside class="loc-panel" id="loc-panel">
+          <div class="loc-body" id="loc-body">
+            <div class="loc-head">
+              <span class="mine-title">地点目录</span>
+              <span class="mine-n" id="loc-n">0</span>
+              <button class="ghost small loc-panel-toggle" id="loc-panel-toggle" type="button" aria-expanded="true" aria-controls="loc-body" title="收起地点目录">收起</button>
+            </div>
+            <input class="loc-search" id="loc-search" type="search" placeholder="搜地点名（中文即可）" autocomplete="off" />
+            <ul class="loc-list" id="loc-list"></ul>
+            <p class="loc-empty hidden" id="loc-empty">没有匹配的地点</p>
+          </div>
+        </aside>
+      </div>
+      <div class="map-canvas" id="map-canvas">
+        <div class="map-bg" id="map-bg"></div>
+        <div class="map-stage" id="map-stage">
+          <svg class="road-layer" id="road-layer" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+          <div class="road-tag-layer" id="road-tag-layer"></div>
+          <div class="marker-layer" id="marker-layer"></div>
+          <svg class="loc-guide hidden" id="loc-guide" viewBox="0 0 24 34" aria-hidden="true">
+            <path d="M9 3h6v10h6L12 31 3 13h6Z" />
+          </svg>
+        </div>
+
+        <div class="create-pop hidden" id="create-pop">
+          <div class="mini-bar" id="mini-bar">
+            <span class="mini-title">⛔ 标注禁行路段</span>
+            <span class="mini-count" id="mini-count">已标 0 个拐点</span>
+            <div class="mini-actions">
+              <button class="ghost small" id="mini-undo" type="button">撤销</button>
+              <button class="ghost small" id="mini-clear" type="button">清空</button>
+              <button class="ghost small" id="mini-expand" type="button">展开编辑</button>
+              <button class="ghost small" id="mini-cancel" type="button">取消</button>
+            </div>
+            <p class="mini-hint">面板已缩到左上角：左键沿道路依次点击起点与转折点，标完点「展开编辑」填写标题发布。点「取消」才会退出标注。</p>
+          </div>
+          <h3 id="pop-heading">在这里创建留言点</h3>
+          <div class="cat-row" id="cat-row"></div>
+          <div class="cap-box hidden" id="cap-box">
+            <label for="pop-capacity">人数上限</label>
+            <input id="pop-capacity" type="number" min="2" max="30" step="1" value="4" />
+            <span class="cap-hint">2-30 人，清空则不限；发起人自动算一名</span>
+          </div>
+          <div class="approval-box hidden" id="approval-box">
+            <label class="approval-check">
+              <input type="checkbox" id="pop-approval" />
+              需要申请审核（别人点「申请加入」后，等你同意才能入队）
+            </label>
+          </div>
+          <div class="closure-box hidden" id="closure-box">
+            <label class="closure-check">
+              <input type="checkbox" id="pop-closure" />
+              这条通知包含修路／封路（道路不能走）
+            </label>
+            <div class="path-tools hidden" id="path-tools">
+              <p class="path-hint" id="path-hint">请单独标出不能走的路段：点「收起并标注」后面板会缩到左上角，左键沿道路点击起点与转折点即可。</p>
+              <div class="path-actions">
+                <button class="ghost small" id="path-draw" type="button">收起并标注</button>
+                <span class="path-count" id="path-count">已标 0 个拐点</span>
+                <button class="ghost small" id="path-undo" type="button">撤销</button>
+                <button class="ghost small" id="path-clear" type="button">清空</button>
+              </div>
+            </div>
+          </div>
+          <input id="pop-title" maxlength="30" placeholder="标题（必填，30 字内）" />
+          <textarea id="pop-content" maxlength="500" rows="3" placeholder="想说点什么…（选填）"></textarea>
+          <p class="error" id="pop-error"></p>
+          <div class="pop-actions">
+            <button class="ghost" id="pop-cancel" type="button">取消</button>
+            <button class="submit small" id="pop-save" type="button">发布</button>
+          </div>
+        </div>
+      </div>
+      <p class="map-hint">提示：滚轮缩放、按住左键拖动平移；右键单击地图空地创建留言点（右键滑动不做任何动作），双击圆针查看内容并留言；左键单击空地可关闭当前开着的窗口。</p>
+
+      <section class="help hidden" id="help-box">
+        <h3>使用方式</h3>
+        <ol>
+          <li>用账号密码登录，名称只能是中文、最多 7 个字。</li>
+          <li>登录／注册页有<b>身份编码</b>：留空＝学生，<b>T2026</b>＝老师（仅显示老师标识），<b>G2026</b>＝进入<b>官方模式</b>；官方模式只在本次登录内有效，退出后不填编码即回到普通身份。</li>
+          <li><b>官方模式</b>下双击任意一条留言／组队，右侧详情底部有「<b>标为警告</b>」按钮：点下去这条在地图上原本的头像圆针会变成<b>红底白感叹号</b>（同一地点叠成堆时，堆上的数字也会涂红），再点「<b>撤掉警告</b>」就恢复成头像；被标警告的条目，详情正文上方会有一条红色提示。普通身份看不到这个按钮，但所有人都看得到感叹号和提示。</li>
+          <li>留言点分四类：<b style="color:var(--cat-official)">学校发布</b>通知（修路、窗口优惠等）、<b style="color:var(--cat-study)">学习</b>、<b style="color:var(--cat-fun)">娱乐</b>、<b style="color:var(--cat-life)">生活</b>（食堂、生活服务等），颜色对应圆针描边。</li>
+          <li>左上角是<b>板块</b>滑动按钮：<b>留言／组队</b>。<b>留言</b>板块是留言点与警戒线，<b>组队</b>板块是组队点，两套内容<b>互不显示</b>：切板块时筛选条的分类、地图上的圆针和「我发布的…」都会跟着换成当前板块的内容，右键空地建的也是当前板块的点。</li>
+          <li><b>组队点</b>分四类：<b style="color:var(--cat-course)">课程</b>、<b style="color:var(--cat-contest)">竞赛</b>、<b style="color:var(--cat-selfstudy)">自习</b>、<b style="color:var(--cat-sport)">运动</b>。右键空地创建组队点时可以设<b>人数上限</b>（2-30，清空则不限），<b>发起人自动算一名</b>；双击圆针在右侧看到<b>成员名单</b>，点「<b>我要加入</b>」入队、再点一次「退出队伍」离队，名额满了按钮会禁用。队伍里的沟通就用下面原有的留言区。</li>
+          <li>创建组队点时还可以勾选<b>需要申请审核</b>：勾上以后，别人点「<b>申请加入</b>」不会直接入队，而是先给你发一条申请；你在组队详情里的「<b>待处理的申请</b>」点「同意／拒绝」来决定。没勾选审核的队伍仍然是点一下「我要加入」直接入队。</li>
+          <li>有人给你发申请时，右侧「<b>我发布的组队</b>」里对应的那一条会亮起<b>红点</b>（面板收起时标题旁也有红点），展开就能处理；申请发出后对方会看到「已申请，等发起人同意」，点「取消申请」可以撤回。</li>
+          <li><b>右键单击</b>地图空地创建留言点，先在弹窗里选择类型；<b>学校发布</b>类型只有官方账号可以发布。<b>右键按住滑动不再有任何手势</b>：既不会平移地图，也不会弹出创建窗（平移只用<b>左键</b>按住拖动）。全平台的点总数<b>不限</b>，每个人能发布的留言点／组队点数量也<b>不限</b>；在留言点下<b>写留言同样不限</b>，随便写。</li>
+          <li>「<b>学校发布</b>」通知如果是<b>修路／封路</b>，勾选后编辑面板会自动<b>缩到左上角并进入标注状态</b>：左键沿道路把不能走的路段点出来（至少 2 个拐点），标完点「展开编辑」回到正常面板填写标题并发布；只有点「取消」才会退出标注。未标注路段不允许发布。</li>
+          <li>发布后的<b>修路／封路</b>通知<b>不会出现圆针留言点</b>，只在地图上画一段加粗的<b>警戒线</b>，并在线中间标出「修路」两个字；<b>留言入口就在这「修路」两字上</b>：单击它即可在右侧查看正文并留言（悬停会显示这条通知的标题），<b>警戒线本身点不动</b>。</li>
+          <li>顶部筛选条可按类型查看，双击圆针在右侧展开内容与全部留言；同一地点挤在一起的留言点会自动合并成一个带数字的图标，双击后右侧按当前筛选类型列出这一地点的各个留言点。</li>
+          <li>任何已登录用户都能在留言点下继续留言；<b>自己发的留言</b>右边会出现「删除」按钮，点了确认后即从这条留言点下移除（别人的删不了）。</li>
+          <li>在留言点／组队点详情里，<b>点作者名字、队伍成员、留言者或申请人的名字</b>（带小头像的那些），会弹出这个人的<b>详细介绍小窗</b>：头像、昵称、身份、自我介绍、注册时间和发布统计；点自己则标注「这是你」。✕、Esc 或点窗外关闭。</li>
+          <li>想<b>回复某个人</b>：在详情里<b>右键点击 TA 的头像或名字</b>（作者、队伍成员、留言者、申请人都可以），下方「写留言」框会自动带上 <b>@TA</b> 并光标移到最后，接着输入内容、点「发表留言」就是回复这个人；框里已有同一个 @ 不会重复添加，<b>右键自己的头像不会触发</b>。左键点击仍然是打开个人介绍小窗，两者互不影响。</li>
+          <li>点击右上角的<b>头像</b>进入<b>个人页面</b>：查看账号、身份、注册时间与发布统计，也可以改昵称、填写<b>自我介绍</b>，还能查看<b>自己发布的留言</b>、<b>自己发布的组队</b>、<b>自己加入的组队</b>和<b>自己申请加入的组队</b>，点击其中任意一条会在个人页弹出小窗口查看详细信息，窗口里还会直接列出<b>这条收到的留言</b>（点留言人的头像能看 TA 的个人介绍）。</li>
+          <li>右侧最下方的「<b>我发布的留言</b>」默认收起，点标题展开后会列出自己发布过的留言，点其中任意一条就能直接跳到它的详情；每条右边的「<b>删除</b>」按钮可以整条删掉（连同它下面的留言），删除前会先让你确认。</li>
+          <li>「<b>地点目录</b>」的入口在<b>地图上方筛选条的最右边</b>（排在「全部／学校发布／学习／娱乐／生活」这些分类后面），点那个「地点目录」按钮，目录就在<b>筛选条下方紧贴左侧</b>展开（像个下拉块，盖在地图上，不占右侧面板）；再点一次按钮、或点目录右上角的「收起」就能关掉。里面列出校园里的 21 个地点（名字、类型、位置说明、备注），在搜索框输入地名可以筛选，点其中任意一条，地图就会自动放大移过去；鼠标在某个地点上<b>停留约 1 秒</b>，还会弹出小窗显示<b>这个地点附近的留言</b>（点窗里的留言可在地图上打开）。</li>
+          <li>右侧面板<b>默认收起</b>成一条窄边，点边上的「留言板」即可展开（左上角切到「组队」时，这条窄边写成「组队板」）；<b>双击圆针／单击「修路」标签打开详情</b>或<b>发布留言</b>时会自动展开，展开后点「收起面板」可以随时收回。留言板和地点目录<b>互不影响</b>：目录是筛选条上那个按钮的下拉块，不再占用右侧面板，两块可以同时开着。地图按整块画布<b>居中铺满</b>，面板是<b>浮在地图右端之上</b>的，所以开合不会改变地图的大小、位置和缩放；若右侧的地图被展开的面板挡住了，收起面板就能看到（新建留言的弹窗会自动避开面板）。屏幕窄的时候面板改成排在地图下方，地图在页面里<b>垂直居中</b>，上下留白一样多。</li>
+          <li><b>左键单击地图空白处</b>会自动关闭当前开着的窗口：创建弹窗、右侧详情面板、地点目录、附近留言小窗、帮助说明都会收起（点圆针、「修路」标签或窗口本身不算空白；按住左键<b>拖动平移</b>、标注封路时的<b>左键落点</b>不会触发关闭）。</li>
+        </ol>
+      </section>
+    </section>
+
+    <aside class="detail-panel" id="detail-panel">
+      <button class="ghost small panel-toggle" id="panel-toggle" type="button" aria-expanded="false" aria-controls="panel-content" title="展开右侧留言板">
+        <svg class="pt-icon" viewBox="0 0 12 12" aria-hidden="true"><path d="M4 2l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="pt-label" id="panel-label">留言板</span>
+      </button>
+      <div class="panel-content" id="panel-content">
+      <div class="panel-idle" id="panel-idle">
+        <p>右侧留言板</p>
+        <span>双击地图上的圆针查看内容；同一地点叠放了多个留言点时，双击合并图标即可在这里列出这一地点的留言点。</span>
+      </div>
+      <div class="board hidden" id="board">
+        <div class="board-head">
+          <h2 id="board-title">同一地点</h2>
+          <button class="ghost board-close" id="board-close" type="button">关闭</button>
+        </div>
+        <p class="board-meta" id="board-meta"></p>
+        <ul class="spot-list" id="spot-list"></ul>
+      </div>
+      <div class="panel-body hidden" id="panel-body">
+        <div class="p-sec p-info">
+          <div class="p-head">
+            <h2 id="p-title"></h2>
+            <span class="tag" id="p-cat"></span>
+          </div>
+          <div class="meta" id="p-meta"></div>
+          <p class="warn-note hidden" id="p-warn-note">这条已被官方标为警告，地图上显示成感叹号。</p>
+          <p class="p-content" id="p-content"></p>
+        </div>
+
+        <div class="p-sec p-team hidden" id="p-team">
+          <div class="section-title">队伍成员 <span id="t-count"></span></div>
+          <div class="member-row" id="member-row"></div>
+          <div class="team-actions">
+            <button class="submit small" id="p-join" type="button">我要加入</button>
+            <span class="team-state" id="t-state"></span>
+          </div>
+          <div class="apply-box hidden" id="apply-box">
+            <div class="section-title">待处理的申请 <span id="apply-n"></span></div>
+            <ul class="apply-list" id="apply-list"></ul>
+          </div>
+        </div>
+
+        <div class="p-sec p-actions">
+          <button class="ghost small" id="p-back" type="button">← 返回</button>
+          <span class="p-gap"></span>
+          <button class="ghost small hidden" id="p-warn" type="button">标为警告</button>
+          <button class="danger small hidden" id="p-delete" type="button">删除此留言点</button>
+          <button class="ghost small" id="p-close" type="button">关闭</button>
+        </div>
+
+        <div class="p-sec p-comments">
+          <div class="section-title">全部留言 <span id="c-count"></span></div>
+          <ul class="comment-list" id="comment-list"></ul>
+        </div>
+
+        <div class="p-sec p-writing">
+          <div class="section-title">写留言</div>
+          <form class="comment-form" id="comment-form">
+            <textarea id="comment-input" maxlength="300" rows="2" placeholder="写下你的留言…"></textarea>
+            <div class="comment-actions">
+              <p class="error" id="comment-error"></p>
+              <button class="submit small" type="submit">发表留言</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <section class="mine-box" id="mine-box">
+        <button class="mine-head" id="mine-toggle" type="button" aria-expanded="false" aria-controls="mine-body">
+          <span class="mine-caret" id="mine-caret">▸</span>
+          <span class="mine-title" id="mine-title">我发布的留言</span>
+          <span class="red-dot hidden" id="mine-dot" title="有新的加入申请待你确认"></span>
+          <span class="mine-n" id="mine-n">0</span>
+        </button>
+        <div class="mine-body hidden" id="mine-body">
+          <ul class="mine-list" id="mine-list"></ul>
+          <p class="mine-empty hidden" id="mine-empty">你还没有发布过留言：右键地图空地即可创建。</p>
+          <p class="error" id="mine-error"></p>
+        </div>
+      </section>
+      </div>
+    </aside>
+  </main>
+
+  <svg class="svg-defs" aria-hidden="true" focusable="false">
+    <defs>
+      <filter id="map-sharpen" x="0" y="0" width="100%" height="100%">
+        <feConvolveMatrix id="sharpen-kernel" order="3" kernelMatrix="0 -0.2 0 -0.2 1.8 -0.2 0 -0.2 0" edgeMode="duplicate" />
+      </filter>
+    </defs>
+  </svg>
+
+  <div class="loc-preview hidden" id="loc-preview" role="tooltip">
+    <div class="lp-head">
+      <span class="lp-name" id="lp-name"></span>
+      <span class="mine-n" id="lp-n">0</span>
+    </div>
+    <ul class="lp-list" id="lp-list"></ul>
+    <p class="lp-empty hidden" id="lp-empty">这个地点附近还没有留言</p>
+    <p class="lp-tip hidden" id="lp-tip">点击留言可在地图上打开</p>
+  </div>
+
+  <div class="point-modal hidden" id="user-modal" role="dialog" aria-modal="true" aria-labelledby="um-title">
+    <div class="point-modal-card user-card">
+      <div class="pm-head">
+        <div class="pm-head-main"><h3 class="pm-title" id="um-title">个人介绍</h3></div>
+        <button class="ghost small pm-close" id="um-close" type="button" title="关闭（Esc）">✕</button>
+      </div>
+      <div class="pm-body" id="um-body"></div>
+    </div>
+  </div>
+
+  <script src="/js/api.js?v=90"></script>
+  <script src="/js/map.js?v=90"></script>
+</body>
+</html>
