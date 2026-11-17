@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2C10.5 2 6 6.5 6 12c0 7 10 18 10 18s10-11 10-18c0-5.5-4.5-10-10-10z' fill='%232f66c9'/%3E%3Ccircle cx='16' cy='12' r='4' fill='%23fff'/%3E%3C/svg%3E" />
+  <title>个人页面 · 校园留言地图</title>
+  <!-- ?v= 是缓存版本号：静态资源在 server/index.js 里设了一天缓存，HTML 本身不缓存，
+       所以每轮改完 js/css 只要把这个数字 +1，浏览器就会重新拉，不用手动强刷 -->
+  <link rel="stylesheet" href="/css/style.css?v=90" />
+</head>
+<body class="page-profile">
+  <header class="topbar">
+    <div class="brand">校园留言地图</div>
+    <div class="topbar-right">
+      <a class="ghost" id="btn-back" href="/map.html">← 返回地图</a>
+      <button class="ghost" id="btn-logout" type="button">退出</button>
+    </div>
+  </header>
+
+  <main class="profile-layout">
+    <section class="profile-card">
+      <h2 class="card-title">个人信息</h2>
+      <div class="profile-id">
+        <span class="chip-avatar big" id="pf-avatar">🙂</span>
+        <div class="profile-id-text">
+          <p class="profile-name" id="pf-name">…</p>
+          <p class="profile-sub"><span id="pf-username"></span><span class="role-tag" id="pf-role" hidden></span></p>
+        </div>
+      </div>
+      <dl class="profile-list">
+        <div><dt>账号</dt><dd id="pf-account">—</dd></div>
+        <div><dt>身份</dt><dd id="pf-identity">—</dd></div>
+        <div><dt>注册时间</dt><dd id="pf-joined">—</dd></div>
+        <div><dt>发布留言</dt><dd id="pf-points">—</dd></div>
+        <div><dt>标出的封路路段</dt><dd id="pf-roads">—</dd></div>
+        <div><dt>在别人留言点下的留言</dt><dd id="pf-comments">—</dd></div>
+        <div><dt>收到的留言</dt><dd id="pf-received">—</dd></div>
+      </dl>
+      <form class="profile-form" id="nick-form">
+        <label class="field-label" for="nick-input">昵称（中文，最多 7 个字）</label>
+        <input id="nick-input" maxlength="7" autocomplete="off" />
+        <div class="profile-actions">
+          <p class="error" id="nick-error"></p>
+          <button class="submit small" type="submit">保存昵称</button>
+        </div>
+      </form>
+      <button class="ghost small profile-more" id="btn-my-content" type="button">我的发布与申请<span class="red-dot hidden" id="my-content-dot"></span></button>
+    </section>
+
+    <section class="profile-card">
+      <h2 class="card-title">自我介绍</h2>
+      <p class="profile-tip">只有你自己登录后能看到，写点什么放在这里，方便记住自己在地图上做过的事。（200 字内）</p>
+      <form class="profile-form" id="bio-form">
+        <textarea id="bio-input" rows="6" maxlength="200" placeholder="介绍一下自己：专业、常去的地点、想一起组局的方向…"></textarea>
+        <div class="profile-actions">
+          <span class="bio-count" id="bio-count">0 / 200</span>
+          <p class="error" id="bio-error"></p>
+          <button class="submit small" type="submit">保存自我介绍</button>
+        </div>
+      </form>
+      <p class="bio-preview-title">现在的自我介绍</p>
+      <p class="bio-preview" id="bio-preview">还没有填写。</p>
+    </section>
+
+    <section class="profile-card" id="friends-card">
+      <h2 class="card-title">我的好友</h2>
+      <p class="profile-tip">好友是用户之间的长期关系，和「组队」互不影响：不用在同一支队伍也能加好友，组队也不会自动成为好友。</p>
+      <div class="friends-head">
+        <span class="friends-count">好友 <b id="friends-n">0</b> 人</span>
+        <button class="ghost small" id="btn-friend-search" type="button">添加好友</button>
+        <button class="ghost small" id="btn-friend-requests" type="button">好友申请<span class="badge hidden" id="friend-badge">0</span></button>
+      </div>
+      <ul class="friend-list" id="friend-list"></ul>
+      <p class="mine-empty hidden" id="friend-empty">还没有好友：点「添加好友」按账号或昵称搜索同学。</p>
+      <p class="error friends-msg" id="friends-msg"></p>
+    </section>
+
+  </main>
+
+  <div class="point-modal hidden" id="my-content-modal" role="dialog" aria-modal="true" aria-labelledby="mc-title">
+    <div class="point-modal-card" id="my-content-card">
+      <div class="pm-head">
+        <div class="pm-head-main"><h3 class="pm-title" id="mc-title">我的发布与申请</h3></div>
+        <button class="ghost small pm-close" id="mc-close" type="button" title="关闭（Esc）">✕</button>
+      </div>
+      <div class="pm-body">
+        <p class="profile-tip">点击任意一条，会在本页弹出小窗口查看详细信息（正文、队伍成员、申请状态，以及<b>收到的留言</b>）；窗口里点作者、成员或留言者的名字／头像，还能再看这个人的个人介绍。</p>
+        <div class="pblock">
+          <div class="pblock-head">
+            <h3 class="pblock-title">我发布的留言</h3>
+            <span class="mine-n" id="my-msg-n">0</span>
+          </div>
+          <ul class="mine-list" id="my-msg-list"></ul>
+          <p class="mine-empty hidden" id="my-msg-empty">还没有发布过留言：回地图右键空地即可创建。</p>
+        </div>
+        <div class="pblock">
+          <div class="pblock-head">
+            <h3 class="pblock-title">我发布的组队</h3>
+            <span class="mine-n" id="my-team-n">0</span>
+          </div>
+          <ul class="mine-list" id="my-team-list"></ul>
+          <p class="mine-empty hidden" id="my-team-empty">还没有发起过组队：回地图右键空地即可创建队伍。</p>
+        </div>
+        <div class="pblock">
+          <div class="pblock-head">
+            <h3 class="pblock-title">我加入的组队</h3>
+            <span class="mine-n" id="my-joined-n">0</span>
+          </div>
+          <ul class="mine-list" id="my-joined-list"></ul>
+          <p class="mine-empty hidden" id="my-joined-empty">还没有加入过别人的队伍：在地图上双击组队点，点「申请加入」。</p>
+        </div>
+        <div class="pblock">
+          <div class="pblock-head">
+            <h3 class="pblock-title">我申请的组队</h3>
+            <span class="mine-n" id="my-app-n">0</span>
+          </div>
+          <ul class="mine-list" id="my-app-list"></ul>
+          <p class="mine-empty hidden" id="my-app-empty">还没有待处理的组队申请：在地图上双击组队点，点「申请加入」。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="point-modal hidden" id="point-modal" role="dialog" aria-modal="true" aria-labelledby="pm-title">
+    <div class="point-modal-card">
+      <div class="pm-head">
+        <div class="pm-head-main">
+          <h3 class="pm-title" id="pm-title"></h3>
+          <span class="tag" id="pm-cat"></span>
+        </div>
+        <button class="ghost small pm-close" id="pm-close" type="button" title="关闭（Esc）">✕</button>
+      </div>
+      <div class="pm-meta"><div class="meta" id="pm-meta"></div></div>
+      <div class="pm-body" id="pm-body"></div>
+      <div class="pm-foot">
+        <a class="ghost small" id="pm-map-link" href="/map.html">在地图上打开 →</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="point-modal hidden" id="user-modal" role="dialog" aria-modal="true" aria-labelledby="um-title">
+    <div class="point-modal-card user-card">
+      <div class="pm-head">
+        <div class="pm-head-main"><h3 class="pm-title" id="um-title">个人介绍</h3></div>
+        <button class="ghost small pm-close" id="um-close" type="button" title="关闭（Esc）">✕</button>
+      </div>
+      <div class="pm-body" id="um-body"></div>
+    </div>
+  </div>
+
+  <div class="point-modal hidden" id="friend-search-modal" role="dialog" aria-modal="true" aria-labelledby="fs-title">
+    <div class="point-modal-card">
+      <div class="pm-head">
+        <div class="pm-head-main"><h3 class="pm-title" id="fs-title">添加好友</h3></div>
+        <button class="ghost small pm-close" id="fs-close" type="button" title="关闭（Esc）">✕</button>
+      </div>
+      <div class="fs-form">
+        <input id="fs-input" maxlength="20" autocomplete="off" placeholder="搜索账号或昵称（最多 20 字）" />
+        <button class="submit small" id="fs-go" type="button">搜索</button>
+      </div>
+      <div class="fs-form">
+        <input id="fs-note" maxlength="50" autocomplete="off" placeholder="验证消息（选填，最长 50 字）" />
+      </div>
+      <p class="fs-msg" id="fs-msg"></p>
+      <ul class="friend-list" id="fs-list"></ul>
+    </div>
+  </div>
+
+  <div class="point-modal hidden" id="friend-requests-modal" role="dialog" aria-modal="true" aria-labelledby="fr-title">
+    <div class="point-modal-card">
+      <div class="pm-head">
+        <div class="pm-head-main"><h3 class="pm-title" id="fr-title">好友申请</h3></div>
+        <button class="ghost small pm-close" id="fr-close" type="button" title="关闭（Esc）">✕</button>
+      </div>
+      <div class="pm-section">
+        <h4 class="section-title">收到的申请 <span id="fr-in-n"></span></h4>
+        <ul class="friend-list" id="fr-in-list"></ul>
+        <p class="mine-empty hidden" id="fr-in-empty">还没有人申请加你为好友。</p>
+      </div>
+      <div class="pm-section">
+        <h4 class="section-title">我发出的申请 <span id="fr-out-n"></span></h4>
+        <ul class="friend-list" id="fr-out-list"></ul>
+        <p class="mine-empty hidden" id="fr-out-empty">你还没有发出过好友申请。</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/api.js?v=90"></script>
+  <script src="/js/profile.js?v=90"></script>
+</body>
+</html>
